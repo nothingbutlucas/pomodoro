@@ -1,0 +1,188 @@
+#!/usr/bin/bash -e
+
+# Note: The -e flag will cause the script to exit if any command fails.
+
+# Description: Simple pomodoro timer script
+# Author: @nothingbutlucas
+# Version: 1.0.0
+# License: GNU General Public License v3.0
+
+# Colours and uses
+
+red='\033[0;31m'    # Something went wrong
+green='\033[0;32m'  # Something went well
+yellow='\033[0;33m' # Warning
+blue='\033[0;34m'   # Info
+purple='\033[0;35m' # When asking something to the user
+cyan='\033[0;36m'   # Something is happening
+grey='\033[0;37m'   # Show a command to the user
+nc='\033[0m'        # No Color
+
+sign_wrong="${red}[-]${nc}"
+sign_good="${green}[+]${nc}"
+sign_warn="${yellow}[!]${nc}"
+sign_info="${blue}[i]${nc}"
+sign_ask="${purple}[?]${nc}"
+sign_doing="${cyan}[~]${nc}"
+sign_cmd="${grey}[>]${nc}"
+
+wrong="${red}"
+good="${green}"
+warn="${yellow}"
+info="${blue}"
+ask="${purple}"
+doing="${cyan}"
+cmd="${grey}"
+
+trap ctrl_c INT
+
+function ctrl_c() {
+	exit_script
+}
+
+function exit_script() {
+	echo -e "${sign_info} You worked $modules_worked modules"
+	minutes_worked=$((work_time * $modules_worked))
+	echo -e "${sign_info} Like $minutes_worked minutes"
+	if [[ $modules_worked -ge 4 ]]; then
+		echo -e "${sign_info} Like $((minutes_worked / 60)) hours"
+	fi
+	echo ""
+	echo -e "\n${sign_good} Exiting script"
+	tput cnorm
+	exit 0
+}
+
+function start_script() {
+	tput civis
+	echo ""
+	echo -e "${sign_good} Starting script"
+}
+
+function verify_root() {
+	root_or_not=n
+	if [[ $root_or_not == "y" ]]; then
+		if [[ $(id -u) -ne 0 ]]; then
+			echo -e "${sign_wrong} This script must be run as root" 1>&2
+			exit_script
+		else
+			echo -e "${sign_good} Running as root"
+		fi
+	else
+		if [[ $(id -u) == 0 ]]; then
+			echo -e "${sign_wrong} This script must not be run as root" 1>&2
+			exit_script
+		else
+			echo -e "${sign_good} Not running as root"
+		fi
+	fi
+}
+
+function help_panel() {
+	echo -e "\n${sign_warn} Usage: ${good}$0\n"
+	echo -e "${sign_info} The script will start a pomodoro timer with 25 minutes of work and 5 minutes of break"
+	echo -e "${sign_info} You can change the work and break time with the -w and -b options respectively"
+	echo -e "\n${sign_warn} Example: ${good}$0 ${info} -w ${nc}25 ${info}-b ${nc}5 ${cmd}\n"
+	echo -e "${sign_info} Each 4 modules, the break time will be 4 times longer than the break time by default"
+	echo -e "\n${sign_warn} Options:\n"
+	echo -e "\t${info} -w ${nc}Set the work time in minutes"
+	echo -e "\t${info} -b ${nc}Set the break time in minutes"
+	echo -e "\t${info} -l ${nc}Set the long break time in minutes (If not, will be 4 times the break time)"
+	echo -e "\t${info} -h ${nc}Show this help panel"
+
+	exit_script
+}
+
+function break_sound() {
+	local sound=340
+	for x in {1..6}; do
+		sound=$((sound + 100))
+		play -n synth 0.15 sine $sound &>/dev/null
+	done
+}
+
+function work_sound() {
+	local sound=1040
+	for x in {1..6}; do
+		sound=$((sound - 100))
+		play -n synth 0.15 sine $sound &>/dev/null
+	done
+}
+
+# Main function
+
+function main() {
+	count=0
+	modules_worked=0
+	work_time=$((work_time * 60))
+	break_time=$((break_time * 60))
+	action=""
+
+	while true; do
+		if [[ $action == "Working" ]]; then
+			secs=$((work_time))
+			action="Resting"
+			break_sound
+		elif [[ $action == "Resting" ]]; then
+			secs=$((break_time))
+			action="Working"
+			count=$((count + 1))
+			modules_worked=$((modules_worked + 1))
+			echo ""
+			echo -e "${sign_info} Modulo $count/4"
+			if [[ $count == 4 ]]; then
+				echo -e "${sign_good} Long break"
+				echo ""
+				secs=$((long_break_time))
+				break_sound
+				count=0
+			else
+				secs=$((break_time))
+			fi
+			echo ""
+			work_sound
+		else
+			action="Working"
+			secs=$((work_time))
+		fi
+		echo ""
+
+		while [ $secs -ge 0 ]; do
+			echo -ne "${sign_doing} ${action}... $((secs / 60)) min $((secs % 60)) sec\033[0K\r"
+			sleep 1
+			secs=$((secs - 1))
+		done
+	done
+}
+
+# Script starts here
+
+start_script
+
+# Define variables
+work_time=25
+break_time=5
+modules_worked=0
+long_break_time=False
+
+while getopts ":w:b:l:h" arg; do
+	case $arg in
+	w) work_time=$OPTARG ;;
+	b) break_time=$OPTARG ;;
+	l) long_break_time=$OPTARG ;;
+	h) help_panel ;;
+	?)
+		echo -e "${sign_wrong} Invalid option: -$OPTARG"
+		help_panel
+		;;
+	esac
+done
+
+if [ $long_break_time == False ]; then
+	long_break_time=$((break_time * 4))
+fi
+long_break_time=$((long_break_time * 60))
+
+verify_root
+main
+exit_script
