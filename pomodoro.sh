@@ -42,7 +42,7 @@ function ctrl_c() {
 
 function exit_script() {
 	echo -e "${sign_info} You worked $modules_worked modules"
-	minutes_worked=$((work_time * $modules_worked))
+	minutes_worked=$((work_time * modules_worked))
 	echo -e "${sign_info} Like $minutes_worked minutes"
 	if [[ $modules_worked -ge 4 ]]; then
 		echo -e "${sign_info} Like $((minutes_worked / 60)) hours"
@@ -116,6 +116,7 @@ function main() {
 	modules_worked=0
 	work_time=$((work_time * 60))
 	break_time=$((break_time * 60))
+	long_break_time=$((long_break_time * 60))
 	action=""
 
 	while true; do
@@ -163,9 +164,9 @@ start_script
 work_time=25
 break_time=5
 modules_worked=0
-long_break_time=False
+long_break_time=false
 
-while getopts ":w:b:l:h" arg; do
+while getopts ":w:b:l:hd" arg; do
 	case $arg in
 	w) work_time=$OPTARG ;;
 	b) break_time=$OPTARG ;;
@@ -178,11 +179,9 @@ while getopts ":w:b:l:h" arg; do
 	esac
 done
 
-if [ $long_break_time == False ]; then
+if [[ "$long_break_time" == false ]]; then
 	long_break_time=$((break_time * 4))
 fi
-long_break_time=$((long_break_time * 60))
 
 verify_root
 main
-exit_script
