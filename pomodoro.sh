@@ -25,6 +25,7 @@ sign_info="${blue}[i]${nc}"
 sign_ask="${purple}[?]${nc}"
 sign_doing="${cyan}[~]${nc}"
 sign_cmd="${grey}[>]${nc}"
+sign_debug="${yellow}[d]${nc}"
 
 wrong="${red}"
 good="${green}"
@@ -41,14 +42,17 @@ function ctrl_c() {
 }
 
 function exit_script() {
-	echo -e "${sign_info} You worked $modules_worked modules"
-	minutes_worked=$((work_time * modules_worked))
-	echo -e "${sign_info} Like $minutes_worked minutes"
-	if [[ $modules_worked -ge 4 ]]; then
-		echo -e "${sign_info} Like $((minutes_worked / 60)) hours"
-	fi
 	echo ""
-	echo -e "\n${sign_good} Exiting script"
+	if [[ $modules_worked -gt 0 ]]; then
+		echo -e "${sign_info} You worked $modules_worked modules"
+		minutes_worked=$((work_time * modules_worked))
+		echo -e "${sign_info} Like $minutes_worked minutes"
+		if [[ $modules_worked -ge 4 ]]; then
+			echo -e "${sign_info} Like $((minutes_worked / 60)) hours"
+		fi
+		echo ""
+	fi
+	echo -e "${sign_good} Exiting script"
 	tput cnorm
 	exit 0
 }
@@ -88,6 +92,7 @@ function help_panel() {
 	echo -e "\t${info} -w ${nc}Set the work time in minutes"
 	echo -e "\t${info} -b ${nc}Set the break time in minutes"
 	echo -e "\t${info} -l ${nc}Set the long break time in minutes (If not, will be 4 times the break time)"
+	echo -e "\t${info} -d ${nc}Enable debug mode (For testing and develop)"
 	echo -e "\t${info} -h ${nc}Show this help panel"
 
 	exit_script
@@ -109,6 +114,12 @@ function work_sound() {
 	done
 }
 
+function echo_debug() {
+	if [[ $debug == true ]]; then
+		echo -e "${sign_debug} $1"
+	fi
+}
+
 # Main function
 
 function main() {
@@ -119,19 +130,35 @@ function main() {
 	long_break_time=$((long_break_time * 60))
 	action=""
 
+	echo_debug "Work time: $work_time"
+	echo_debug "Break time: $break_time"
+	echo_debug "Long break time: $long_break_time"
+
 	while true; do
-		if [[ $action == "Working" ]]; then
+		echo_debug "Looping"
+		echo_debug "Action: $action"
+		echo_debug "Work time: $work_time"
+		echo_debug "Break time: $break_time"
+		echo_debug "Long break time: $long_break_time"
+		if [[ $action == "Resting" ]]; then
+			echo_debug "Working"
 			secs=$((work_time))
-			action="Resting"
-			break_sound
-		elif [[ $action == "Resting" ]]; then
-			secs=$((break_time))
 			action="Working"
+			break_sound
+		elif [[ $action == "Working" ]]; then
+			echo_debug "Resting"
+			secs=$((break_time))
+			action="Resting"
 			count=$((count + 1))
 			modules_worked=$((modules_worked + 1))
+			echo_debug "Count: $count"
+			echo_debug "Modules worked: $modules_worked"
+			echo_debug "Modules: $((count))"
 			echo ""
-			echo -e "${sign_info} Modulo $count/4"
+			echo -e "${sign_info} Module $count/4"
 			if [[ $count == 4 ]]; then
+				# TODO - Change 4 to a variable that the user can define
+				echo_debug "$count is equal 4"
 				echo -e "${sign_good} Long break"
 				echo ""
 				secs=$((long_break_time))
@@ -140,7 +167,6 @@ function main() {
 			else
 				secs=$((break_time))
 			fi
-			echo ""
 			work_sound
 		else
 			action="Working"
@@ -153,6 +179,7 @@ function main() {
 			sleep 1
 			secs=$((secs - 1))
 		done
+		echo_debug "The finalized action is ${action}"
 	done
 }
 
@@ -165,6 +192,7 @@ work_time=25
 break_time=5
 modules_worked=0
 long_break_time=false
+debug=false
 
 while getopts ":w:b:l:hd" arg; do
 	case $arg in
@@ -172,6 +200,7 @@ while getopts ":w:b:l:hd" arg; do
 	b) break_time=$OPTARG ;;
 	l) long_break_time=$OPTARG ;;
 	h) help_panel ;;
+	d) debug=true ;;
 	?)
 		echo -e "${sign_wrong} Invalid option: -$OPTARG"
 		help_panel
@@ -182,6 +211,10 @@ done
 if [[ "$long_break_time" == false ]]; then
 	long_break_time=$((break_time * 4))
 fi
+
+echo_debug "Work time: $work_time"
+echo_debug "Break time: $break_time"
+echo_debug "Long break time: $long_break_time"
 
 verify_root
 main
