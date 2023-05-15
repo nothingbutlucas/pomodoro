@@ -144,7 +144,7 @@ function main() {
 			echo_debug "Working"
 			secs=$((work_time))
 			action="Working"
-			break_sound
+			work_sound
 		elif [[ $action == "Working" ]]; then
 			echo_debug "Resting"
 			secs=$((break_time))
@@ -167,7 +167,7 @@ function main() {
 			else
 				secs=$((break_time))
 			fi
-			work_sound
+			break_sound
 		else
 			action="Working"
 			secs=$((work_time))
