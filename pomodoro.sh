@@ -45,6 +45,7 @@ function exit_script() {
 	echo ""
 	if [[ $modules_worked -gt 0 ]]; then
 		echo -e "${sign_info} You worked $modules_worked modules"
+		work_time=$((work_time / 60))
 		minutes_worked=$((work_time * modules_worked))
 		echo -e "${sign_info} Like $minutes_worked minutes"
 		if [[ $modules_worked -ge 4 ]]; then
