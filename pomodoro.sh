@@ -94,6 +94,7 @@ function help_panel() {
 	echo -e "\t${info} -b ${nc}Set the break time in minutes"
 	echo -e "\t${info} -l ${nc}Set the long break time in minutes (If not, will be 4 times the break time)"
 	echo -e "\t${info} -d ${nc}Enable debug mode (For testing and develop)"
+	echo -e "\t${info} -r ${nc}Enable reverse mode (Starts with a break)"
 	echo -e "\t${info} -h ${nc}Show this help panel"
 
 	exit_script
@@ -129,7 +130,11 @@ function main() {
 	work_time=$((work_time * 60))
 	break_time=$((break_time * 60))
 	long_break_time=$((long_break_time * 60))
-	action=""
+	if [[ $reverse == true ]]; then
+		action="Working"
+	else
+		action="Resting"
+	fi
 
 	echo_debug "Work time: $work_time"
 	echo_debug "Break time: $break_time"
@@ -194,14 +199,16 @@ break_time=5
 modules_worked=0
 long_break_time=false
 debug=false
+reverse=false
 
-while getopts ":w:b:l:hd" arg; do
+while getopts ":w:b:l:hdr" arg; do
 	case $arg in
 	w) work_time=$OPTARG ;;
 	b) break_time=$OPTARG ;;
 	l) long_break_time=$OPTARG ;;
-	h) help_panel ;;
 	d) debug=true ;;
+	r) reverse=true ;;
+	h) help_panel ;;
 	?)
 		echo -e "${sign_wrong} Invalid option: -$OPTARG"
 		help_panel
@@ -216,6 +223,7 @@ fi
 echo_debug "Work time: $work_time"
 echo_debug "Break time: $break_time"
 echo_debug "Long break time: $long_break_time"
+echo_debug "Reverse: $reverse"
 
 verify_root
 main
