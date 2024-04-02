@@ -22,3 +22,4 @@
 ## ToDo:
 
 - [ ] Add a TUI
+- [ ] Reduce/Check dependencies
