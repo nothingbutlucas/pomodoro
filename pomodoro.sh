@@ -46,17 +46,11 @@ function ctrl_c() {
 
 function exit_script() {
 	if [[ $modules_worked -gt 0 ]]; then
+		work_time=$((work_time / 60))
+		minutes_worked=$((work_time * modules_worked))
 		if [ $cli == true ]; then
 			echo ""
-			echo -e "${sign_info} You worked $modules_worked modules"
-			work_time=$((work_time / 60))
-			minutes_worked=$((work_time * modules_worked))
-			echo -e "${sign_info} Like $minutes_worked minutes"
-			if [[ $modules_worked -ge 4 ]]; then
-				echo -e "${sign_info} Like $((minutes_worked / 60)) hours"
-			fi
-			echo ""
-			echo -e "${sign_good} Exiting script"
+			echo -e "${sign_info}Exiting script\nYou worked ${modules_worked} modules\nLike $((minutes_worked / 60)):$((minutes_worked % 60)) hs"
 		else
 			dialog --infobox "Exiting script\nYou worked ${modules_worked} modules\nLike $((minutes_worked / 60)):$((minutes_worked % 60)) hs" $HEIGHT $WIDTH
 		fi
@@ -79,11 +73,12 @@ function help_panel() {
 	echo -e "${sign_info} The script will start a pomodoro timer with 25 minutes of work and 5 minutes of break"
 	echo -e "${sign_info} You can change the work and break time with the -w and -b options respectively"
 	echo -e "\n${sign_warn} Example: ${good}$0 ${info} -w ${nc}25 ${info}-b ${nc}5 ${cmd}\n"
-	echo -e "${sign_info} Each 4 modules, the break time will be 4 times longer than the break time by default"
+	echo -e "${sign_info} Each 4 modules (By default), the break time will be 4 times longer than the break time by default"
 	echo -e "\n${sign_warn} Options:\n"
-	echo -e "\t${info} -w ${nc}Set the work time in minutes"
-	echo -e "\t${info} -b ${nc}Set the break time in minutes"
+	echo -e "\t${info} -w ${nc}Set the work time in minutes (If not, will be 25 minutes)"
+	echo -e "\t${info} -b ${nc}Set the break time in minutes (If not, will be 5 minutes)"
 	echo -e "\t${info} -l ${nc}Set the long break time in minutes (If not, will be 4 times the break time)"
+	echo -e "\t${info} -m ${nc}Set the total number of modules (If not, will be 4 modules)"
 	echo -e "\t${info} -d ${nc}Enable debug mode (For testing and develop)"
 	echo -e "\t${info} -r ${nc}Enable reverse mode (Starts with a break)"
 	echo -e "\t${info} -c ${nc}Enable CLI mode / Disables TUI mode"
@@ -111,6 +106,7 @@ function work_sound() {
 function echo_debug() {
 	if [[ $debug == true ]]; then
 		echo -e "${sign_debug} $1"
+		set -x
 	fi
 }
 
@@ -154,18 +150,17 @@ function main() {
 			echo_debug "Modules: $((count))"
 			if [ $cli == true ]; then
 				echo ""
-				echo -e "${sign_info} Module $count/4"
+				echo -e "${sign_info} Module $count/$total_modules"
 			else
-				dialog --infobox "Module $count/4. On module 4 will be a long break" $HEIGHT $WIDTH
+				dialog --infobox "Module $count/$total_modules. On module $total_modules will be a long break" $HEIGHT $WIDTH
 			fi
-			if [[ $count == 4 ]]; then
-				# TODO: - Change 4 to a variable that the user can define
-				echo_debug "$count is equal 4"
+			if [[ $count == "$total_modules" ]]; then
+				echo_debug "$count is equal $total_modules"
 				if [ $cli == true ]; then
 					echo -e "${sign_good} Long break"
 					echo ""
 				else
-					dialog --infobox "Module 4/4. Long break" $HEIGHT $WIDTH
+					dialog --infobox "Module $total_modules/$total_modules. Long break" $HEIGHT $WIDTH
 				fi
 				secs=$((long_break_time))
 				break_sound
@@ -202,10 +197,11 @@ reverse=false
 cli=false
 
 # Script starts here
-while getopts ":w:b:l:hdrc" arg; do
+while getopts ":w:b:l:m:hdrc" arg; do
 	case $arg in
 	w) work_time=$OPTARG ;;
 	b) break_time=$OPTARG ;;
+	m) total_modules=$OPTARG ;;
 	l) long_break_time=$OPTARG ;;
 	d) debug=true ;;
 	r) reverse=true ;;
@@ -221,7 +217,7 @@ done
 start_script
 
 if [[ "$long_break_time" == false ]]; then
-	long_break_time=$((break_time * 4))
+	long_break_time=$((break_time * total_modules))
 fi
 
 echo_debug "Work time: $work_time"
