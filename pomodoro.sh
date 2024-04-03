@@ -52,11 +52,25 @@ function exit_script() {
 			echo ""
 			echo -e "${sign_info}Exiting script\nYou worked ${modules_worked} modules\nLike $((minutes_worked / 60)):$((minutes_worked % 60)) hs"
 		else
-			dialog --infobox "Exiting script\nYou worked ${modules_worked} modules\nLike $((minutes_worked / 60)):$((minutes_worked % 60)) hs" $HEIGHT $WIDTH
+			/bin/dialog --infobox "Exiting script\nYou worked ${modules_worked} modules\nLike $((minutes_worked / 60)):$((minutes_worked % 60)) hs" $HEIGHT $WIDTH
 		fi
 	fi
 	tput cnorm
 	exit 0
+}
+
+function check_dependencies() {
+	for dependencies in "/bin/dialog" "/bin/play"; do
+		if ! command -v $dependencies >/dev/null 2>&1; then
+			echo -e "${sign_wrong} $dependencies is not installed"
+			# If dialog is not present, show a warning and proceed with cli=true
+			if [[ $dependencies == "/bin/dialog" ]]; then
+				cli=true
+			fi
+		else
+			echo_debug "Dependency $dependencies is installed"
+		fi
+	done
 }
 
 function start_script() {
@@ -64,7 +78,7 @@ function start_script() {
 		tput civis
 		echo -e "${sign_good} Starting script"
 	else
-		dialog --infobox "Starting script" $HEIGHT $WIDTH
+		/bin/dialog --infobox "Starting script" $HEIGHT $WIDTH
 	fi
 }
 
@@ -152,7 +166,7 @@ function main() {
 				echo ""
 				echo -e "${sign_info} Module $count/$total_modules"
 			else
-				dialog --infobox "Module $count/$total_modules. On module $total_modules will be a long break" $HEIGHT $WIDTH
+				/bin/dialog --infobox "Module $count/$total_modules. On module $total_modules will be a long break" $HEIGHT $WIDTH
 			fi
 			if [[ $count == "$total_modules" ]]; then
 				echo_debug "$count is equal $total_modules"
@@ -160,7 +174,7 @@ function main() {
 					echo -e "${sign_good} Long break"
 					echo ""
 				else
-					dialog --infobox "Module $total_modules/$total_modules. Long break" $HEIGHT $WIDTH
+					/bin/dialog --infobox "Module $total_modules/$total_modules. Long break" $HEIGHT $WIDTH
 				fi
 				secs=$((long_break_time))
 				break_sound
@@ -181,7 +195,7 @@ function main() {
 				secs=$((secs - 1))
 			done
 		else
-			dialog --pause "\n${action} for $((secs / 60)) minutes." $HEIGHT $WIDTH "$secs"
+			/bin/dialog --pause "\n${action} for $((secs / 60)) minutes." $HEIGHT $WIDTH "$secs"
 		fi
 		echo_debug "The finalized action is ${action}"
 	done
@@ -215,6 +229,9 @@ while getopts ":w:b:l:m:hdrc" arg; do
 done
 
 start_script
+
+
+check_dependencies
 
 if [[ "$long_break_time" == false ]]; then
 	long_break_time=$((break_time * total_modules))

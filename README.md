@@ -26,4 +26,5 @@
 
 - [X] Add a TUI
 - [X] Add option to modify the quantity of modules before long break
-- [ ] Reduce/Check dependencies
+- [X] Reduce/Check dependencies
+- [ ] ?
