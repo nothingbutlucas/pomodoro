@@ -35,6 +35,9 @@ ask="${purple}"
 doing="${cyan}"
 cmd="${grey}"
 
+WIDTH=50
+HEIGHT=15
+
 trap ctrl_c INT
 
 function ctrl_c() {
@@ -42,44 +45,32 @@ function ctrl_c() {
 }
 
 function exit_script() {
-	echo ""
 	if [[ $modules_worked -gt 0 ]]; then
-		echo -e "${sign_info} You worked $modules_worked modules"
-		work_time=$((work_time / 60))
-		minutes_worked=$((work_time * modules_worked))
-		echo -e "${sign_info} Like $minutes_worked minutes"
-		if [[ $modules_worked -ge 4 ]]; then
-			echo -e "${sign_info} Like $((minutes_worked / 60)) hours"
+		if [ $cli == true ]; then
+			echo ""
+			echo -e "${sign_info} You worked $modules_worked modules"
+			work_time=$((work_time / 60))
+			minutes_worked=$((work_time * modules_worked))
+			echo -e "${sign_info} Like $minutes_worked minutes"
+			if [[ $modules_worked -ge 4 ]]; then
+				echo -e "${sign_info} Like $((minutes_worked / 60)) hours"
+			fi
+			echo ""
+			echo -e "${sign_good} Exiting script"
+		else
+			dialog --infobox "Exiting script\nYou worked ${modules_worked} modules\nLike $((minutes_worked / 60)):$((minutes_worked % 60)) hs" $HEIGHT $WIDTH
 		fi
-		echo ""
 	fi
-	echo -e "${sign_good} Exiting script"
 	tput cnorm
 	exit 0
 }
 
 function start_script() {
-	tput civis
-	echo ""
-	echo -e "${sign_good} Starting script"
-}
-
-function verify_root() {
-	root_or_not=n
-	if [[ $root_or_not == "y" ]]; then
-		if [[ $(id -u) -ne 0 ]]; then
-			echo -e "${sign_wrong} This script must be run as root" 1>&2
-			exit_script
-		else
-			echo -e "${sign_good} Running as root"
-		fi
+	if [ "$cli" == true ]; then
+		tput civis
+		echo -e "${sign_good} Starting script"
 	else
-		if [[ $(id -u) == 0 ]]; then
-			echo -e "${sign_wrong} This script must not be run as root" 1>&2
-			exit_script
-		else
-			echo -e "${sign_good} Not running as root"
-		fi
+		dialog --infobox "Starting script" $HEIGHT $WIDTH
 	fi
 }
 
@@ -95,6 +86,7 @@ function help_panel() {
 	echo -e "\t${info} -l ${nc}Set the long break time in minutes (If not, will be 4 times the break time)"
 	echo -e "\t${info} -d ${nc}Enable debug mode (For testing and develop)"
 	echo -e "\t${info} -r ${nc}Enable reverse mode (Starts with a break)"
+	echo -e "\t${info} -c ${nc}Enable CLI mode / Disables TUI mode"
 	echo -e "\t${info} -h ${nc}Show this help panel"
 
 	exit_script
@@ -104,7 +96,7 @@ function break_sound() {
 	local sound=340
 	for x in {1..6}; do
 		sound=$((sound + 100))
-		play -n synth 0.15 sine $sound &>/dev/null
+		/bin/play -n synth 0.15 sine $sound &>/dev/null
 	done
 }
 
@@ -112,7 +104,7 @@ function work_sound() {
 	local sound=1040
 	for x in {1..6}; do
 		sound=$((sound - 100))
-		play -n synth 0.15 sine $sound &>/dev/null
+		/bin/play -n synth 0.15 sine $sound &>/dev/null
 	done
 }
 
@@ -160,13 +152,21 @@ function main() {
 			echo_debug "Count: $count"
 			echo_debug "Modules worked: $modules_worked"
 			echo_debug "Modules: $((count))"
-			echo ""
-			echo -e "${sign_info} Module $count/4"
-			if [[ $count == 4 ]]; then
-				# TODO - Change 4 to a variable that the user can define
-				echo_debug "$count is equal 4"
-				echo -e "${sign_good} Long break"
+			if [ $cli == true ]; then
 				echo ""
+				echo -e "${sign_info} Module $count/4"
+			else
+				dialog --infobox "Module $count/4. On module 4 will be a long break" $HEIGHT $WIDTH
+			fi
+			if [[ $count == 4 ]]; then
+				# TODO: - Change 4 to a variable that the user can define
+				echo_debug "$count is equal 4"
+				if [ $cli == true ]; then
+					echo -e "${sign_good} Long break"
+					echo ""
+				else
+					dialog --infobox "Module 4/4. Long break" $HEIGHT $WIDTH
+				fi
 				secs=$((long_break_time))
 				break_sound
 				count=0
@@ -178,20 +178,19 @@ function main() {
 			action="Working"
 			secs=$((work_time))
 		fi
-		echo ""
-
-		while [ $secs -ge 0 ]; do
-			echo -ne "${sign_doing} ${action}... $((secs / 60)) min $((secs % 60)) sec\033[0K\r"
-			sleep 1
-			secs=$((secs - 1))
-		done
+		if [ $cli == true ]; then
+			echo ""
+			while [ $secs -ge 0 ]; do
+				echo -ne "${sign_doing} ${action}... $((secs / 60)) min $((secs % 60)) sec\033[0K\r"
+				sleep 1
+				secs=$((secs - 1))
+			done
+		else
+			dialog --pause "\n${action} for $((secs / 60)) minutes." $HEIGHT $WIDTH "$secs"
+		fi
 		echo_debug "The finalized action is ${action}"
 	done
 }
-
-# Script starts here
-
-start_script
 
 # Define variables
 work_time=25
@@ -200,14 +199,17 @@ modules_worked=0
 long_break_time=false
 debug=false
 reverse=false
+cli=false
 
-while getopts ":w:b:l:hdr" arg; do
+# Script starts here
+while getopts ":w:b:l:hdrc" arg; do
 	case $arg in
 	w) work_time=$OPTARG ;;
 	b) break_time=$OPTARG ;;
 	l) long_break_time=$OPTARG ;;
 	d) debug=true ;;
 	r) reverse=true ;;
+	c) cli=true ;;
 	h) help_panel ;;
 	?)
 		echo -e "${sign_wrong} Invalid option: -$OPTARG"
@@ -215,6 +217,8 @@ while getopts ":w:b:l:hdr" arg; do
 		;;
 	esac
 done
+
+start_script
 
 if [[ "$long_break_time" == false ]]; then
 	long_break_time=$((break_time * 4))
@@ -225,5 +229,4 @@ echo_debug "Break time: $break_time"
 echo_debug "Long break time: $long_break_time"
 echo_debug "Reverse: $reverse"
 
-verify_root
 main
